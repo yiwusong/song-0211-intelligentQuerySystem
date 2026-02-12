@@ -1,0 +1,160 @@
+---
+description: 口语化开发任务管理 — 当用户用日常口语提到功能名称、任务操作（如"开始做XX"、"XX做完了"、"看看进度"）时，自动通过 Linear MCP 管理任务状态，并推荐 Git 分支名。
+alwaysApply: false
+---
+
+# 口语化开发任务管理规则
+
+## 项目配置（按需修改）
+
+```yaml
+Project:
+  name: "智能数据分析助理"
+  team: "YIW"
+  repo: "https://github.com/yiwusong/song-0211-intelligentQuerySystem"
+```
+
+---
+
+## 核心行为
+
+当用户用口语提到任何开发任务时，按以下流程自动处理：
+
+### 1. 意图识别
+
+从用户的口语中识别以下意图：
+
+| 口语示例 | 识别意图 | 操作 |
+|---------|---------|------|
+| "开始做登录功能" / "我来搞登录" | 开始任务 | 在 Linear 中将对应 Issue 状态改为 **In Progress**，推荐分支名 |
+| "登录功能做完了" / "登录搞定了" | 完成任务 | 将 Issue 状态改为 **Done** |
+| "登录功能有点问题" / "登录那个先放一下" | 暂停/阻塞 | 将 Issue 状态改为 **Backlog** 或添加评论说明原因 |
+| "看看现在什么进度" / "还有哪些没做" | 查看进度 | 列出项目下所有 Issue 及状态汇总 |
+| "加个新任务：用户注册" / "还得做个注册功能" | 创建任务 | 在 Linear 项目下创建新 Issue |
+| "登录功能交给小明" | 指派任务 | 更新 Issue 的 assignee |
+| "登录功能比较急" / "登录优先级调高" | 调整优先级 | 更新 Issue 优先级 (Urgent/High/Normal/Low) |
+
+### 2. 任务匹配
+
+- 使用 `list_issues` 在配置的 project 下模糊搜索用户提到的功能关键词
+- 如果找到唯一匹配，直接操作
+- 如果找到多个匹配，列出让用户选择
+- 如果没找到，询问用户是否要创建新任务
+
+### 3. Git 分支推荐
+
+当用户"开始做"某个任务时，根据 Issue 信息自动推荐分支名：
+
+**分支命名规则**: `feature/<issue-identifier>-<简短描述>`
+
+示例：
+- Issue YIW-12 "用户登录功能" → `feature/YIW-12-user-login`
+- Issue YIW-15 "SQL防火墙" → `feature/YIW-15-sql-firewall`
+
+同时输出创建分支的命令供用户复制：
+```
+git checkout -b feature/YIW-12-user-login
+```
+
+### 4. 状态变更后反馈
+
+每次操作完成后，输出简洁的确认信息：
+
+```
+任务已更新：
+  Issue: YIW-12 用户登录功能
+  状态: Backlog → In Progress
+  分支: feature/YIW-12-user-login
+  链接: https://linear.app/yiwusong/issue/YIW-12/...
+```
+
+---
+
+## 进度汇总格式
+
+当用户要求查看进度时，按以下格式输出：
+
+```
+项目：智能数据分析助理
+
+  In Progress (2):
+    YIW-12 用户登录功能        @songge   P1
+    YIW-15 SQL防火墙           @songge   P0
+
+  Todo (3):
+    YIW-16 前端布局框架         未指派    P1
+    YIW-17 Schema RAG          未指派    P0
+    YIW-18 ECharts渲染组件     未指派    P2
+
+  Done (1):
+    YIW-5  测试任务             @songge   P4
+
+  进度: ████░░░░░░ 1/6 (17%)
+```
+
+---
+
+## Markdown 计划同步到 Linear
+
+当用户贴出或编写 Markdown 格式的开发计划时，自动解析并同步为 Linear Issue。
+
+### 识别格式
+
+支持以下常见写法（大小写不敏感、中英文均可）：
+
+```markdown
+## Phase 1: 搭建基础框架
+- 初始化后端 FastAPI 项目
+- 初始化前端 React 项目
+- 搭建 PostgreSQL 演示数据库
+
+## Phase 2: 前端 UI 开发
+- Header + Sidebar 布局
+- QueryInput 组件
+- ECharts 图表组件
+```
+
+### 解析规则
+
+- `## Phase N: 标题` → 创建为 Linear **父 Issue**（标题格式：`Phase N: 标题`）
+- 每个 `- 子项` → 创建为该父 Issue 下的 **子 Issue (sub-issue)**
+- 优先级默认 Normal (P3)，Phase 编号越小优先级越高（Phase 1 → P2 High，Phase 2 → P3 Normal，以此类推）
+- 所有 Issue 归属到配置区域中的 `project` 和 `team`
+
+### 同步流程
+
+1. 解析 Markdown，提取所有 Phase 及子项
+2. 展示解析结果给用户确认：
+   ```
+   即将同步以下任务到 Linear：
+
+   Phase 1: 搭建基础框架 (P2 High)
+     ├── 初始化后端 FastAPI 项目
+     ├── 初始化前端 React 项目
+     └── 搭建 PostgreSQL 演示数据库
+
+   Phase 2: 前端 UI 开发 (P3 Normal)
+     ├── Header + Sidebar 布局
+     ├── QueryInput 组件
+     └── ECharts 图表组件
+
+   共 2 个 Phase，8 个子任务。确认同步？
+   ```
+3. 用户确认后，依次调用 `create_issue` 创建父 Issue 和子 Issue
+4. 完成后输出汇总：每个 Issue 的编号和链接
+
+### 增量更新
+
+- 如果用户修改了已同步的 Markdown 计划（如新增子项、改标题），对比 Linear 已有 Issue：
+  - 新增的子项 → 创建新 Issue
+  - 已存在的 → 跳过，不重复创建
+- 对比依据：Issue 标题模糊匹配
+
+---
+
+## 注意事项
+
+- 所有 Linear 操作使用配置区域中的 `team` 和 `project` 值
+- 用中文回复，保持简洁口语风格
+- 如果用户意图不明确，优先询问而不是猜测操作
+- 不要在没有确认的情况下删除任务
