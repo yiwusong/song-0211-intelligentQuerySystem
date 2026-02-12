@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     SQL_MAX_RETRIES: int = 3
 
     # ---- CORS ----
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173"]
 
     model_config = {
         "env_file": ".env",

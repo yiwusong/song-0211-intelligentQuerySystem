@@ -1,5 +1,8 @@
 /** SSE 事件类型 */
-export type SSEEventType = 'state' | 'thought' | 'sql' | 'data' | 'viz_config' | 'error' | 'done';
+export type SSEEventType = 'state' | 'thought' | 'sql' | 'data' | 'chart_type' | 'viz_config' | 'error' | 'done';
+
+/** 图表类型 */
+export type ChartType = 'bar' | 'line' | 'pie';
 
 /** 思考事件数据 */
 export interface ThoughtData {
@@ -39,6 +42,7 @@ export type UIState = 'idle' | 'thinking' | 'showSQL' | 'showChart' | 'error';
 export interface QueryResult {
   thinking: string;
   sql: string;
+  chartType: ChartType;
   echartsOption: Record<string, unknown> | null;
   data: QueryResultData | null;
   error: ErrorData | null;

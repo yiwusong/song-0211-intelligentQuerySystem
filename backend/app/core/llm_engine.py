@@ -62,6 +62,10 @@ class LLMEngine:
                 yield ("thinking_full", parsed.get("thinking", ""))
                 yield ("sql", parsed.get("sql", ""))
 
+                # 传递 LLM 推荐的图表类型（bar / line / pie）
+                chart_type = parsed.get("chart_type", "bar")
+                yield ("chart_type", chart_type)
+
                 echarts_option = parsed.get("echarts_option", {})
                 if echarts_option:
                     yield ("viz_config", json.dumps(echarts_option, ensure_ascii=False))

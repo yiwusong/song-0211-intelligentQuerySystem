@@ -12,7 +12,7 @@ import DataTable from './components/DataTable';
 import ErrorDisplay from './components/ErrorDisplay';
 import Skeleton from './components/Skeleton';
 import { useSSE } from './hooks/useSSE';
-import type { QueryHistoryItem } from './types';
+import type { QueryHistoryItem, ChartType } from './types';
 
 const SUGGESTIONS = ['近30天销售趋势', '各城市用户分布', '热销商品 TOP10', '订单状态统计'];
 
@@ -20,8 +20,14 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [history, setHistory] = useState<QueryHistoryItem[]>([]);
   const [dbConnected, setDbConnected] = useState(false);
+  const [activeChartType, setActiveChartType] = useState<ChartType>('bar');
 
-  const { state, thinking, sql, echartsOption, queryData, error, sendQuery, reset } = useSSE();
+  const { state, thinking, sql, chartType, echartsOption, queryData, error, sendQuery, reset } = useSSE();
+
+  // AI 推荐的图表类型变化时，同步更新用户当前选择
+  useEffect(() => {
+    setActiveChartType(chartType);
+  }, [chartType]);
 
   // 启动时检查后端健康状态
   useEffect(() => {
@@ -44,13 +50,14 @@ function App() {
 
   const handleSend = useCallback((question: string) => {
     sendQuery(question);
+    setActiveChartType('bar'); // 重置用户选择
 
     // 添加到历史
     setHistory((prev) => [
       {
         id: Date.now().toString(),
         question,
-        result: { thinking: '', sql: '', echartsOption: null, data: null, error: null },
+        result: { thinking: '', sql: '', chartType: 'bar', echartsOption: null, data: null, error: null },
         timestamp: new Date(),
       },
       ...prev,
@@ -145,7 +152,15 @@ function App() {
                   {(state === 'thinking' || state === 'showSQL') && !echartsOption && (
                     <Skeleton type="chart" />
                   )}
-                  {echartsOption && <EChartsRenderer option={echartsOption} />}
+                  {echartsOption && (
+                    <EChartsRenderer
+                      option={echartsOption}
+                      queryData={queryData}
+                      chartType={chartType}
+                      activeChartType={activeChartType}
+                      onChartTypeChange={setActiveChartType}
+                    />
+                  )}
 
                   {/* 错误提示 */}
                   {error && (

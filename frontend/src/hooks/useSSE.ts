@@ -3,7 +3,7 @@
  * Phase 4: 对接真实后端 /api/query，保留 Mock 可切换
  */
 import { useState, useCallback, useRef } from 'react';
-import type { UIState, ErrorData, QueryResultData } from '../types';
+import type { UIState, ErrorData, QueryResultData, ChartType } from '../types';
 
 /** 是否使用 Mock 模式（不依赖数据库和 LLM） */
 const USE_MOCK = false;
@@ -12,6 +12,7 @@ interface UseSSEReturn {
   state: UIState;
   thinking: string;
   sql: string;
+  chartType: ChartType;
   echartsOption: Record<string, unknown> | null;
   queryData: QueryResultData | null;
   error: ErrorData | null;
@@ -27,6 +28,7 @@ async function parseSSEStream(
     onThinkingDone: (full: string) => void;
     onSQL: (text: string) => void;
     onData: (data: QueryResultData) => void;
+    onChartType: (type: ChartType) => void;
     onVizConfig: (option: Record<string, unknown>) => void;
     onError: (err: ErrorData) => void;
     onDone: () => void;
@@ -72,6 +74,9 @@ async function parseSSEStream(
             case 'data':
               callbacks.onData(parsed);
               break;
+            case 'chart_type':
+              callbacks.onChartType(parsed.type || 'bar');
+              break;
             case 'viz_config':
               // 后端直接发送 ECharts option 对象
               callbacks.onVizConfig(parsed);
@@ -112,6 +117,7 @@ async function realSSE(
     onThinkingDone: (full: string) => void;
     onSQL: (text: string) => void;
     onData: (data: QueryResultData) => void;
+    onChartType: (type: ChartType) => void;
     onVizConfig: (option: Record<string, unknown>) => void;
     onError: (err: ErrorData) => void;
     onDone: () => void;
@@ -153,6 +159,7 @@ async function mockSSE(
     onThinkingDone: (full: string) => void;
     onSQL: (text: string) => void;
     onData: (data: QueryResultData) => void;
+    onChartType: (type: ChartType) => void;
     onVizConfig: (option: Record<string, unknown>) => void;
     onDone: () => void;
   },
@@ -203,6 +210,9 @@ LIMIT 1000;`;
   });
 
   await new Promise((r) => setTimeout(r, 200));
+
+  // 模拟图表类型（默认 bar）
+  callbacks.onChartType('bar');
 
   // 模拟 ECharts 配置
   callbacks.onVizConfig({
@@ -297,6 +307,7 @@ export function useSSE(): UseSSEReturn {
   const [state, setState] = useState<UIState>('idle');
   const [thinking, setThinking] = useState('');
   const [sqlContent, setSql] = useState('');
+  const [chartType, setChartType] = useState<ChartType>('bar');
   const [echartsOption, setEchartsOption] = useState<Record<string, unknown> | null>(null);
   const [queryData, setQueryData] = useState<QueryResultData | null>(null);
   const [error, setError] = useState<ErrorData | null>(null);
@@ -307,6 +318,7 @@ export function useSSE(): UseSSEReturn {
     setState('idle');
     setThinking('');
     setSql('');
+    setChartType('bar');
     setEchartsOption(null);
     setQueryData(null);
     setError(null);
@@ -318,6 +330,7 @@ export function useSSE(): UseSSEReturn {
     // 重置状态
     setThinking('');
     setSql('');
+    setChartType('bar');
     setEchartsOption(null);
     setQueryData(null);
     setError(null);
@@ -344,6 +357,10 @@ export function useSSE(): UseSSEReturn {
       onData: (data: QueryResultData) => {
         if (abortRef.current) return;
         setQueryData(data);
+      },
+      onChartType: (type: ChartType) => {
+        if (abortRef.current) return;
+        setChartType(type);
       },
       onVizConfig: (opt: Record<string, unknown>) => {
         if (abortRef.current) return;
@@ -378,5 +395,5 @@ export function useSSE(): UseSSEReturn {
     run();
   }, []);
 
-  return { state, thinking, sql: sqlContent, echartsOption, queryData, error, sendQuery, reset };
+  return { state, thinking, sql: sqlContent, chartType, echartsOption, queryData, error, sendQuery, reset };
 }

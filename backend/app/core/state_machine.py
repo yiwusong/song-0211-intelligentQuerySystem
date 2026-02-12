@@ -87,6 +87,7 @@ class QueryStateMachine:
         full_thinking = ""
         sql = ""
         viz_config = ""
+        chart_type = "bar"
         llm_error = None
 
         async for event_type, content in self.llm.generate_stream(question, schema_context):
@@ -97,6 +98,8 @@ class QueryStateMachine:
                 yield self._event("thought", {"content": full_thinking, "done": True})
             elif event_type == "sql":
                 sql = content
+            elif event_type == "chart_type":
+                chart_type = content
             elif event_type == "viz_config":
                 viz_config = content
             elif event_type == "error":
@@ -165,6 +168,9 @@ class QueryStateMachine:
 
         # 推送查询结果数据
         yield self._event("data", result.to_dict())
+
+        # 推送 LLM 推荐的图表类型
+        yield self._event("chart_type", {"type": chart_type})
 
         # 推送可视化配置（用实际数据填充）
         if viz_config:
